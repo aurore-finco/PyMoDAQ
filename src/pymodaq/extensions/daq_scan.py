@@ -79,7 +79,8 @@ class DAQScan(QObject, ParameterManager):
         ]},
         {'title': 'Scan options', 'name': 'scan_options', 'type': 'group', 'children': [
             {'title': 'Naverage:', 'name': 'scan_average', 'type': 'int', 'value': 1, 'min': 1},
-            {'title': 'Sort 1D scan data:', 'name': 'sort_scan1D', 'type': 'bool', 'value': False},]},
+            {'title': 'Sort 1D scan data:', 'name': 'sort_scan1D', 'type': 'bool', 'value': False},
+            {'title': 'Move back to init pos after scan:', 'name': 'back_to_init', 'type': 'bool', 'value': False},]},
 
         {'title': 'Plotting options', 'name': 'plot_options', 'type': 'group', 'children': [
             {'title': 'Get data', 'name': 'plot_probe', 'type': 'bool_push'},
@@ -723,7 +724,8 @@ class DAQScan(QObject, ParameterManager):
             self.save_scan()
             if not self.batch_started:
                 if not self.dashboard.overshoot:
-                    self.set_ini_positions()
+                    if self.settings.child('scan_options', 'back_to_init').value():
+                        self.set_ini_positions()
                 self.ui.set_action_enabled('ini_positions', True)
                 self.ui.set_action_enabled('start', True)
 
@@ -965,7 +967,8 @@ class DAQScan(QObject, ParameterManager):
         scan_node.attrs['scan_done'] = True
 
         if not self.dashboard.overshoot:
-            self.set_ini_positions()  # do not set ini position again in case overshoot fired
+            if self.settings.child('scan_options', 'back_to_init').value():
+                self.set_ini_positions()  # do not set ini position again in case overshoot fired or if not wanted
             status = 'Data Acquisition has been stopped by user'
         else:
             status = 'Data Acquisition has been stopped due to overshoot'
