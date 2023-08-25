@@ -1207,7 +1207,7 @@ class DAQ_Detector(QObject):
         elif command.command == "single":
             self.single_grab = True
             self.grab_state = True
-            self.single(command.attribute[0])
+            self.single(*command.attribute)
 
         elif command.command == "stop_grab":
             self.grab_state = False
