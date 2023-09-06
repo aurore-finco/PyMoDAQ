@@ -5,7 +5,7 @@ Created on Wed Jan 10 16:54:14 2018
 @author: Weber Sébastien
 """
 from __future__ import annotations
-
+from importlib import import_module
 from collections import OrderedDict
 import copy
 import os
@@ -250,6 +250,12 @@ class DAQ_Viewer(ParameterManager, ControlModule):
         if self.ui is not None:
             return self.ui.viewer_docks
 
+    @property
+    def viewers_docks(self) -> List[Dock]:
+        """list of Viewer Docks from the UI, for back compatibility"""
+        deprecation_msg('viewers_docks is a deprecated property use viewer_docks instead')
+        return self.viewer_docks
+
     def daq_type_changed_from_ui(self, daq_type: DAQTypesEnum):
         """ Apply changes from the selection of a different DAQTypesEnum in the UI
 
@@ -289,6 +295,7 @@ class DAQ_Viewer(ParameterManager, ControlModule):
 
     def detector_changed_from_ui(self, detector: str):
         self._detector = detector
+        self.update_plugin_config()
         self._set_setting_tree()
 
     @property
@@ -301,9 +308,16 @@ class DAQ_Viewer(ParameterManager, ControlModule):
         if det not in self.detectors:
             raise ValueError(f'{det} is not a valid Detector: {self.detectors}')
         self._detector = det
+        self.update_plugin_config()
         if self.ui is not None:
             self.ui.detector = det
         self._set_setting_tree()
+
+    def update_plugin_config(self):
+        parent_module = utils.find_dict_in_list_from_key_val(DET_TYPES[self.daq_type.name], 'name', self.detector)
+        mod = import_module(parent_module['module'].__package__.split('.')[0])
+        if hasattr(mod, 'config'):
+            self.plugin_config = mod.config
 
     def detectors_changed_from_ui(self, detectors: List[str]):
         self._detectors = detectors
@@ -906,10 +920,13 @@ class DAQ_Viewer(ParameterManager, ControlModule):
 
         elif param.name() == 'ip_address' or param.name == 'port':
             self._command_tcpip.emit(
-                ThreadCommand('update_connection', dict(ipaddress=self.settings.child('main_settings', 'tcpip',
-                                                                                      'ip_address').value(),
-                                                        port=self.settings.child('main_settings', 'tcpip',
-                                                                                 'port').value())))
+                ThreadCommand('update_connection', dict(ipaddress=self.settings['main_settings', 'tcpip',
+                                                                                      'ip_address'],
+                                                        port=self.settings['main_settings', 'tcpip',
+                                                                                 'port'])))
+
+        elif param.name() == 'plugin_config':
+            self.show_config(self.plugin_config)
 
         if path is not None:
             if 'main_settings' not in path:
@@ -1319,7 +1336,7 @@ class DAQ_Detector(QObject):
         if not self.grab_state:
             self.detector.stop()
 
-    def single(self, Naverage=1, **kwargs):
+    def single(self, Naverage=1, *args, **kwargs):
         """ Convenience function to grab a single set of data
 
         Parameters
